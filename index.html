@@ -28,6 +28,10 @@ h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:16px; margin:28px 24px 8px
 
 
 
+
+
+
+
 .yard-toggle { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; align-items:center; }
 .yard-toggle button {
   appearance:none; border:1px solid var(--line); background:var(--card); color:var(--text);
@@ -40,12 +44,17 @@ h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:16px; margin:28px 24px 8px
 .yard-toggle .count { color:var(--muted); font-weight:500; font-size:12px; margin-left:4px; }
 .card[hidden] { display:none !important; }
 .yard-toggle .refresh-bids { margin-left: auto; border-style: dashed; }
-.yard-toggle .refresh-bids:disabled { opacity: 0.6; cursor: default; }
 .refresh-status { color: var(--muted); font-size: 12px; margin: 4px 0 0; min-height: 1.2em; }
 
 </style></head><body>
 <header><h1>Elvis precise digest</h1>
 <p class="subhead">Sep 6, 2026 · Dallas + Denton · 304/365 priced · sorted by est. retail high→low · thumbs hotlinked (not downloaded) · bids refreshed Sun Sep 6, 9:38 PM CT</p>
+
+
+
+
+
+
 
 
 
@@ -461,6 +470,12 @@ Amazon&#x27;s Choice
 
 
 
+
+
+
+
+
+
 <script>
 (function () {
   function yardOf(card) {
@@ -505,72 +520,20 @@ Amazon&#x27;s Choice
   var btn = document.getElementById('refresh-bids');
   var status = document.getElementById('refresh-status');
   function setStatus(t) { if (status) status.textContent = t || ''; }
-  function getWebhook() {
-    try { return localStorage.getItem('elvisBidWebhook') || ''; } catch (e) { return ''; }
-  }
-  function setWebhook(v) {
-    try { localStorage.setItem('elvisBidWebhook', v); } catch (e) {}
-  }
-  function getWebhookKey() {
-    try { return localStorage.getItem('elvisBidWebhookKey') || ''; } catch (e) { return ''; }
-  }
-  function setWebhookKey(v) {
-    try { localStorage.setItem('elvisBidWebhookKey', v); } catch (e) {}
-  }
   if (btn) {
     btn.addEventListener('click', function () {
-      var url = getWebhook();
-      if (url && !/^https:\/\//i.test(url)) {
-        try { localStorage.removeItem('elvisBidWebhook'); } catch (e) {}
-        url = '';
+      var phrase = 'refresh bids';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(phrase).then(function () {
+          setStatus('Copied “refresh bids” — paste that into Auction Hunter chat. Page buttons can’t call the refresh directly yet.');
+        }).catch(function () {
+          setStatus('Say “refresh bids” in Auction Hunter chat.');
+          window.prompt('Copy this into Auction Hunter chat:', phrase);
+        });
+      } else {
+        window.prompt('Copy this into Auction Hunter chat:', phrase);
+        setStatus('Paste that into Auction Hunter chat.');
       }
-      if (!url) {
-        url = window.prompt(
-          'Paste the https:// Webhook URL from the Elvis bid refresh routine panel (not a grokbot:// link). Saved in this browser only.',
-          ''
-        );
-        if (!url) { setStatus('Cancelled.'); return; }
-        url = url.trim();
-        if (!/^https:\/\//i.test(url)) {
-          setStatus('That was not an https URL. Open the routine panel, copy Webhook URL, try again.');
-          try { localStorage.removeItem('elvisBidWebhook'); } catch (e) {}
-          return;
-        }
-        setWebhook(url);
-        var key = window.prompt(
-          'Optional: paste Webhook key / Authorization value if the panel shows one (or leave blank).',
-          getWebhookKey()
-        );
-        if (key !== null && key.trim()) setWebhookKey(key.trim());
-      }
-      btn.disabled = true;
-      // Form POST in a new tab avoids CORS (top-level navigation, not fetch).
-      var form = document.createElement('form');
-      form.method = 'POST';
-      form.action = url;
-      form.target = '_blank';
-      form.rel = 'noopener';
-      form.style.display = 'none';
-      function add(name, value) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
-      }
-      add('source', 'elvis-digest');
-      add('action', 'refresh-bids');
-      add('at', new Date().toISOString());
-      var key = getWebhookKey();
-      if (key) {
-        add('key', key);
-        add('token', key);
-      }
-      document.body.appendChild(form);
-      form.submit();
-      setTimeout(function () { document.body.removeChild(form); }, 1000);
-      setStatus('Refresh requested in a new tab. Wait ~1–2 min, then hard-refresh this page. If nothing happens, say "refresh bids" in chat.');
-      setTimeout(function () { btn.disabled = false; }, 60000);
     });
   }
 })();
