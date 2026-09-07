@@ -24,6 +24,10 @@ h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:16px; margin:28px 24px 8px
 
 
 
+
+
+
+
 .yard-toggle { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; align-items:center; }
 .yard-toggle button {
   appearance:none; border:1px solid var(--line); background:var(--card); color:var(--text);
@@ -42,6 +46,12 @@ h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:16px; margin:28px 24px 8px
 </style></head><body>
 <header><h1>Elvis precise digest — Dallas only</h1>
 <p class="subhead">Sep 6, 2026 · Dallas yard · 254/254 priced · sorted by est. retail high→low · thumbs hotlinked · bids refreshed Sun Sep 6, 9:38 PM CT</p>
+
+
+
+
+
+
 
 
 
@@ -340,6 +350,12 @@ Amazon&#x27;s Choice
 
 
 
+
+
+
+
+
+
 <script>
 (function () {
   function yardOf(card) {
@@ -399,13 +415,22 @@ Amazon&#x27;s Choice
   if (btn) {
     btn.addEventListener('click', function () {
       var url = getWebhook();
+      if (url && !/^https:\/\//i.test(url)) {
+        try { localStorage.removeItem('elvisBidWebhook'); } catch (e) {}
+        url = '';
+      }
       if (!url) {
         url = window.prompt(
-          'Paste the Webhook URL from Auction Hunter → routine "Elvis bid refresh". Saved in this browser only.',
+          'Paste the https:// Webhook URL from the Elvis bid refresh routine panel (not a grokbot:// link). Saved in this browser only.',
           ''
         );
         if (!url) { setStatus('Cancelled.'); return; }
         url = url.trim();
+        if (!/^https:\/\//i.test(url)) {
+          setStatus('That was not an https URL. Open the routine panel, copy Webhook URL, try again.');
+          try { localStorage.removeItem('elvisBidWebhook'); } catch (e) {}
+          return;
+        }
         setWebhook(url);
         var key = window.prompt(
           'Optional: paste Webhook key / Authorization value if the panel shows one (or leave blank).',
