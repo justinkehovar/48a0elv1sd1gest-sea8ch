@@ -17,6 +17,19 @@ h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:16px; margin:28px 24px 8px
 .bid { color:var(--bid); font-weight:700; } .retail { color:var(--retail); font-weight:600; }
 .pct { color:var(--muted); font-size:12px; } .sub { margin-top:4px; color:var(--muted); font-size:11px; }
 .nav a { color:var(--bid); margin-right:12px; }
+
+.yard-toggle { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; }
+.yard-toggle button {
+  appearance:none; border:1px solid var(--line); background:var(--card); color:var(--text);
+  border-radius:999px; padding:6px 12px; font:inherit; font-weight:600; cursor:pointer;
+}
+.yard-toggle button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--bid) 55%, var(--line));
+  background: color-mix(in srgb, var(--bid) 18%, var(--card));
+}
+.yard-toggle .count { color:var(--muted); font-weight:500; font-size:12px; margin-left:4px; }
+.card[hidden] { display:none !important; }
+
 </style></head><body>
 <header><h1>Elvis precise digest — Dallas only</h1>
 <p class="subhead">Sep 6, 2026 · Dallas yard · 254/254 priced · sorted by est. retail high→low · thumbs hotlinked</p>
