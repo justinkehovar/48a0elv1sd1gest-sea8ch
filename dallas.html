@@ -19,6 +19,29 @@ h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:16px; margin:28px 24px 8px
 .pct { color:var(--muted); font-size:12px; } .sub { margin-top:4px; color:var(--muted); font-size:11px; }
 .nav a { color:var(--bid); margin-right:12px; }
 
+.card { position: relative; }
+.card .card-main { display:flex; gap:12px; flex:1; text-decoration:none; color:inherit; min-width:0; }
+.card .foundby { margin-top:4px; display:flex; flex-wrap:wrap; gap:4px; }
+.card .foundby span { font-size:10px; color:var(--muted); background:color-mix(in srgb, var(--line) 70%, transparent);
+  border:1px solid var(--line); border-radius:999px; padding:1px 7px; font-weight:500; letter-spacing:0.01em; }
+.card .mark-btns { display:none; flex-direction:column; gap:4px; margin-left:6px; flex:0 0 auto; justify-content:center; }
+body.marking .card .mark-btns { display:flex; }
+.card .mark-btns button { appearance:none; border:1px solid var(--line); background:var(--card); color:var(--text);
+  border-radius:8px; padding:4px 8px; font:11px/1.2 inherit; cursor:pointer; min-width:72px; }
+.card.mark-helpful { outline:2px solid color-mix(in srgb, var(--bid) 70%, transparent); }
+.card.mark-unhelpful { outline:2px solid color-mix(in srgb, var(--new) 70%, transparent); opacity:0.85; }
+.card .mark-btns button.on-good { background:color-mix(in srgb, var(--bid) 25%, var(--card)); }
+.card .mark-btns button.on-bad { background:color-mix(in srgb, var(--new) 25%, var(--card)); }
+.footer-parked { padding:8px 24px 48px; border-top:1px solid var(--line); margin-top:12px; }
+.footer-parked h2 { margin:20px 0 6px; font-size:15px; }
+.footer-parked .subhead { margin:0 0 10px; }
+.parked-list { list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:8px 14px; }
+.parked-list a { color:var(--bid); font-size:13px; text-decoration:none; }
+.parked-list a:hover { text-decoration:underline; }
+.parked-list .n { color:var(--muted); font-size:12px; }
+
+
+
 .yard-toggle { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; align-items:center; }
 .yard-toggle button {
   appearance:none; border:1px solid var(--line); background:var(--card); color:var(--text);
@@ -56,7 +79,10 @@ body.marking .card .mark-btns { display:flex; }
 
 </style></head><body>
 <header><h1>Elvis precise digest</h1>
-<p class="subhead">Wed Sep 30, 10:06 PM CT · Dallas only · 142/142 priced · 142 new vs seen · sorted by est. retail high→low · thumbs hotlinked (not downloaded)</p>
+<p class="subhead">Wed Sep 30, 10:06 PM CT · Dallas only · 142/142 priced · 142 new vs seen · sorted by est. retail high→low · thumbs hotlinked (not downloaded) · bids refreshed Thu Oct 1, 4:39 PM CT</p>
+
+
+
 
 <div class="yard-toggle" role="group" aria-label="Yard filter">
   <button type="button" data-yard="both" aria-pressed="true">Both <span class="count" data-count="both"></span></button>
@@ -243,6 +269,9 @@ body.marking .card .mark-btns { display:flex; }
   <p class="subhead">Still watched; just no open hits this run. <span class='n'>+35 more</span></p>
   <ul class="parked-list"><li><span class='n'>Honda element</span></li><li><span class='n'>Ridesafer</span></li><li><span class='n'>Arduino</span></li><li><span class='n'>Esp32</span></li><li><span class='n'>Supercharger</span></li><li><span class='n'>aprilaire</span></li><li><span class='n'>MagSafe bank</span></li><li><span class='n'>Fadoty</span></li><li><span class='n'>Card restoration</span></li><li><span class='n'>Raquel welch</span></li><li><span class='n'>prunus</span></li><li><span class='n'>Cr1616</span></li><li><span class='n'>Akro</span></li><li><span class='n'>LC099</span></li><li><span class='n'>Jqk black</span></li><li><span class='n'>Archival</span></li><li><span class='n'>Dc56 battery</span></li><li><span class='n'>table</span></li><li><span class='n'>Bidet valve</span></li><li><span class='n'>Screen tone</span></li><li><span class='n'>Kava</span></li><li><span class='n'>planter Trellis</span></li><li><span class='n'>CR123A</span></li><li><span class='n'>Km5</span></li><li><span class='n'>452855</span></li><li><span class='n'>Handset</span></li><li><span class='n'>Vekkia</span></li><li><span class='n'>dyson battery</span></li><li><span class='n'>I2c</span></li><li><span class='n'>Stepper motor</span></li><li><span class='n'>TMC2209</span></li><li><span class='n'>Gpio</span></li><li><span class='n'>NodeMCU</span></li><li><span class='n'>Meshtastic</span></li><li><span class='n'>ESP8266</span></li><li><span class='n'>UART</span></li><li><span class='n'>RS485</span></li><li><span class='n'>SDA SCL</span></li><li><span class='n'>WM8960</span></li><li><span class='n'>HiFiBerry</span></li></ul>
 </section>
+
+
+
 
 
 <script>
