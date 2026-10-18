@@ -68,6 +68,38 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
 
 
 
+.card { position: relative; }
+.card .card-main { display:flex; gap:12px; flex:1; text-decoration:none; color:inherit; min-width:0; }
+.card .foundby { margin-top:4px; display:flex; flex-wrap:wrap; gap:4px; }
+.card .foundby span { font-size:10px; color:var(--muted); background:color-mix(in srgb, var(--line) 70%, transparent);
+  border:1px solid var(--line); border-radius:999px; padding:1px 7px; font-weight:500; letter-spacing:0.01em; }
+.card .mark-btns { display:none; flex-direction:column; gap:4px; margin-left:6px; flex:0 0 auto; justify-content:center; }
+body.marking .card .mark-btns { display:flex; }
+.card .mark-btns button { appearance:none; border:1px solid var(--line); background:var(--card); color:var(--text);
+  border-radius:8px; padding:4px 8px; font:11px/1.2 inherit; cursor:pointer; min-width:72px; }
+.card.mark-helpful { outline:2px solid color-mix(in srgb, var(--bid) 70%, transparent); }
+.card.mark-unhelpful { outline:2px solid color-mix(in srgb, var(--new) 70%, transparent); opacity:0.85; }
+.card .mark-btns button.on-good { background:color-mix(in srgb, var(--bid) 25%, var(--card)); }
+.card .mark-btns button.on-bad { background:color-mix(in srgb, var(--new) 25%, var(--card)); }
+.card .mark-btns button.on-skip { opacity:0.7; }
+.card .mark-note { display:none; margin-top:4px; font-size:11px; color:var(--muted); line-height:1.3; max-width:120px; }
+body.marking .card.mark-unhelpful .mark-note:not(:empty) { display:block; }
+.card .mark-note-edit {
+  display:none; margin-top:4px; width:100%; min-width:100px; max-width:140px;
+  font:11px/1.3 inherit; color:var(--text); background:var(--card); border:1px solid var(--line);
+  border-radius:6px; padding:4px 6px; resize:vertical; min-height:36px;
+}
+body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
+.footer-parked { padding:8px 24px 48px; border-top:1px solid var(--line); margin-top:12px; }
+.footer-parked h2 { margin:20px 0 6px; font-size:15px; }
+.footer-parked .subhead { margin:0 0 10px; }
+.parked-list { list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:8px 14px; }
+.parked-list a { color:var(--bid); font-size:13px; text-decoration:none; }
+.parked-list a:hover { text-decoration:underline; }
+.parked-list .n { color:var(--muted); font-size:12px; }
+
+
+
 .yard-toggle { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; align-items:center; }
 .yard-toggle button {
   appearance:none; border:1px solid var(--line); background:var(--card); color:var(--text);
@@ -115,6 +147,9 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
 </style></head><body>
 <header><h1>Elvis precise digest</h1>
 <p class="subhead">Sun Oct 18, 1:01 AM CT · Dallas + Denton · 260/260 priced · 260 new vs seen · sorted by est. retail high→low · thumbs hotlinked (not downloaded) · bids refreshed Sun Oct 18, 1:01 AM CT</p>
+
+
+
 
 
 
@@ -447,13 +482,26 @@ Static Discharge and Ambient Voltage Reduction, Includes 16.4 ft Cord and Outlet
     if (status === 429) return 'Too many taps. Wait a minute and retry.';
     return 'Couldn\u2019t add it' + (body && body.error ? ' (' + body.error + ')' : '') + '. Try again.';
   }
+  var PAGE = /dallas\.html$/.test(location.pathname) ? 'dallas' : 'main';
+  function txt(el) { return el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : ''; }
+  function cardMeta(b) {
+    // Logging-only context for the star history (the box re-derives everything server-side).
+    var c = b.closest('.card'); if (!c) return {};
+    var g = c.closest('.grid'), h = g ? g.previousElementSibling : null;
+    while (h && h.tagName !== 'H2') h = h.previousElementSibling;
+    var fb = []; try { fb = JSON.parse(c.getAttribute('data-found-by') || '[]'); } catch (e) {}
+    var t = c.querySelector('.title'), tt = t ? txt(t).replace(/\s*NEW$/, '') : '';
+    return { title: tt, foundBy: fb, yard: c.getAttribute('data-yard') || '', section: h ? h.id : '',
+             bid: txt(c.querySelector('.prices .bid')), retail: txt(c.querySelector('.prices .retail')),
+             pct: txt(c.querySelector('.prices .pct')) };
+  }
   function add(b) {
     var id = b.getAttribute('data-watch-id');
     if (!/^[0-9]+$/.test(id) || b.classList.contains('pending') || b.classList.contains('on')) return;
     setAll(id, 'pending', 'Adding');
     var opt = withTimeout(25000);
     opt.method = 'POST'; opt.headers = { 'Content-Type': 'application/json' };
-    opt.body = JSON.stringify({ pageId: id }); opt.mode = 'cors'; opt.credentials = 'omit';
+    opt.body = JSON.stringify({ pageId: id, page: PAGE, meta: cardMeta(b) }); opt.mode = 'cors'; opt.credentials = 'omit';
     fetch(BASE + '/add', opt).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) { return { r: r, j: j }; });
     }).then(function (x) {
@@ -490,6 +538,9 @@ Static Discharge and Ambient Voltage Reduction, Includes 16.4 ft Cord and Outlet
   })(0);
 })();
 </script>
+
+
+
 
 
 
