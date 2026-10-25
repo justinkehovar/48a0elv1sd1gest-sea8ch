@@ -352,8 +352,12 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
       } else {
         setAll(id, 'err', 'Retry'); toast(errText(x.r.status, x.j));
       }
-    }).catch(function () {
-      setAll(id, 'err', 'Retry'); toast('Couldn\u2019t reach my computer. Is Tailscale on?');
+    }).catch(function (e) {
+      setAll(id, 'err', 'Retry');
+      var timed = e && (e.name === 'AbortError' || e.code === 20);
+      toast(timed
+        ? 'Timed out \u2014 computer may be waking up. Wait ~30s and retry.'
+        : 'Couldn\u2019t reach my computer. Is Tailscale on?');
     });
   }
   document.addEventListener('click', function (ev) {
