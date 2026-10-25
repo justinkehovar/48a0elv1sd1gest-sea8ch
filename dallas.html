@@ -82,7 +82,7 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
 
 </style></head><body>
 <header><h1>Elvis precise digest</h1>
-<p class="subhead">Sun Oct 25, 5:28 PM CT · Dallas only · 134/134 priced · 134 new vs seen · sorted by est. retail high→low · thumbs hotlinked (not downloaded)</p>
+<p class="subhead">Sun Oct 25, 5:43 PM CT · Dallas only · 134/134 priced · 134 new vs seen · sorted by est. retail high→low · thumbs hotlinked (not downloaded)</p>
 
 <div class="yard-toggle" role="group" aria-label="Yard filter">
   <button type="button" data-yard="both" aria-pressed="true">Both <span class="count" data-count="both"></span></button>
@@ -261,7 +261,8 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
 <div id="watch-toast" role="status" aria-live="polite"></div>
 <script id="elvis-watch-js">
 (function () {
-  var BASE = 'https://grok-auction.tail811011.ts.net/watch';
+  var BASE = 'https://grok-auction.tail811011.ts.net:8443/watch';
+  var TOKEN = '86yeskBS_KjQMAkrOnLaGdElJjeWuzqeH3oVPuzY5C4';
   var toastEl = document.getElementById('watch-toast'), toastT;
   function toast(msg) {
     if (!toastEl) return;
@@ -308,7 +309,8 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
     var body = JSON.stringify({ pageId: id, page: PAGE, meta: cardMeta(b) });
     function doPost() {
       var opt = withTimeout(45000);
-      opt.method = 'POST'; opt.headers = { 'Content-Type': 'application/json' };
+      opt.method = 'POST';
+      opt.headers = { 'Content-Type': 'application/json', 'X-Elvis-Watch-Token': TOKEN };
       opt.body = body; opt.mode = 'cors'; opt.credentials = 'omit';
       return fetch(BASE + '/add', opt).then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (j) { return { r: r, j: j }; });
@@ -333,8 +335,8 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
       }
       setAll(id, 'err', 'Retry');
       toast(timed
-        ? 'Timed out \u2014 computer may be waking up. Wait ~30s and retry.'
-        : 'Couldn\u2019t reach my computer. Is Tailscale on?');
+        ? 'Couldn\u2019t reach the watch service. Wait ~30s if my computer was asleep and retry.'
+        : 'Couldn\u2019t reach the watch service. Wait ~30s if my computer was asleep and retry.');
     }
     doPost().then(onOk).catch(function (e) { onFail(e, true); });
   }
@@ -343,7 +345,7 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
     if (!b) return;
     ev.preventDefault(); ev.stopPropagation(); add(b);
   });
-  // Pre-fill stars (fails silently when off-tailnet)
+  // Pre-fill stars (fails silently if watch service unreachable)
   var ids = [];
   document.querySelectorAll('.watch-btn[data-watch-id]').forEach(function (b) {
     var id = b.getAttribute('data-watch-id'); if (/^[0-9]+$/.test(id) && ids.indexOf(id) < 0) ids.push(id);
@@ -352,6 +354,7 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
   (function next(k) {
     if (k >= batches.length) return;
     var opt = withTimeout(20000); opt.mode = 'cors'; opt.credentials = 'omit';
+    opt.headers = { 'X-Elvis-Watch-Token': TOKEN };
     fetch(BASE + '/status?ids=' + batches[k].join(','), opt).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         if (!j || !j.ok) return;
