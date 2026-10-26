@@ -82,7 +82,7 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
 
 </style></head><body>
 <header><h1>Elvis precise digest</h1>
-<p class="subhead">Sun Oct 25, 10:01 PM CT · Dallas only · 121/121 priced · 121 new vs seen · sorted by est. retail high→low · thumbs hotlinked (not downloaded)</p>
+<p class="subhead">Mon Oct 26, 12:24 AM CT · Dallas only · 121/121 priced · 121 new vs seen · sorted by est. retail high→low · thumbs hotlinked (not downloaded)</p>
 
 <div class="yard-toggle" role="group" aria-label="Yard filter">
   <button type="button" data-yard="both" aria-pressed="true">Both <span class="count" data-count="both"></span></button>
@@ -256,7 +256,7 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
   function paint(b, state, label) {
     b.classList.remove('pending', 'on', 'err');
     if (state) b.classList.add(state);
-    b.querySelector('.ws').textContent = state === 'on' ? '\u2605' : '\u2606';
+    b.querySelector('.ws').textContent = state === 'on' ? '★' : '☆';
     b.querySelector('.wl').textContent = label;
     b.setAttribute('aria-pressed', state === 'on' ? 'true' : 'false');
     b.title = state === 'on' ? 'On your watchlist' : 'Add to watchlist';
@@ -270,7 +270,7 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
     if (status === 503 && body && /session/.test(body.error || '')) return 'Auction login expired on my computer. Try again after it refreshes.';
     if (status === 409) return 'That auction already closed.';
     if (status === 429) return 'Too many taps. Wait a minute and retry.';
-    return 'Couldn\u2019t add it' + (body && body.error ? ' (' + body.error + ')' : '') + '. Try again.';
+    return 'Couldn’t add it' + (body && body.error ? ' (' + body.error + ')' : '') + '. Try again.';
   }
   var PAGE = /dallas\.html$/.test(location.pathname) ? 'dallas' : 'main';
   function txt(el) { return el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : ''; }
@@ -285,10 +285,56 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
              bid: txt(c.querySelector('.prices .bid')), retail: txt(c.querySelector('.prices .retail')),
              pct: txt(c.querySelector('.prices .pct')) };
   }
+  // While a POST /add is in flight, also poll GET /status so Safari can leave
+  // "Adding" even if the original fetch never settles (Funnel hairpin / stall).
+  var pendingPoll = {}; // id -> true
+  var pollTimer = null;
+  function stopPollIfIdle() {
+    for (var k in pendingPoll) { if (pendingPoll[k]) return; }
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+  function clearPending(id) {
+    if (!pendingPoll[id]) return;
+    delete pendingPoll[id];
+    stopPollIfIdle();
+  }
+  function statusWatched(ids) {
+    var opt = withTimeout(9000);
+    opt.mode = 'cors'; opt.credentials = 'omit';
+    opt.headers = { 'X-Elvis-Watch-Token': TOKEN };
+    return fetch(BASE + '/status?ids=' + ids.join(','), opt)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.ok) return [];
+        return (j.watched || []).map(String);
+      })
+      .catch(function () { return []; });
+  }
+  function markWatched(id, msg) {
+    clearPending(id);
+    setAll(id, 'on', 'Watching');
+    toast(msg || 'Added to your watchlist.');
+  }
+  function pollTick() {
+    var ids = Object.keys(pendingPoll);
+    if (!ids.length) { stopPollIfIdle(); return; }
+    statusWatched(ids).then(function (watched) {
+      watched.forEach(function (wid) {
+        if (!pendingPoll[wid]) return;
+        markWatched(wid, 'Added to your watchlist.');
+      });
+    });
+  }
+  function startPending(id) {
+    if (pendingPoll[id]) return; // avoid stacking polls for same id
+    pendingPoll[id] = true;
+    if (!pollTimer) pollTimer = setInterval(pollTick, 1750);
+  }
   function add(b) {
     var id = b.getAttribute('data-watch-id');
     if (!/^[0-9]+$/.test(id) || b.classList.contains('pending') || b.classList.contains('on')) return;
     setAll(id, 'pending', 'Adding');
+    startPending(id);
     var body = JSON.stringify({ pageId: id, page: PAGE, meta: cardMeta(b) });
     function doPost() {
       var opt = withTimeout(45000);
@@ -301,25 +347,40 @@ body.marking .card.mark-unhelpful .mark-note-edit { display:block; }
     }
     function onOk(x) {
       if (x.r.ok && x.j && x.j.ok) {
-        setAll(id, 'on', 'Watching');
-        toast(x.j.alreadyWatched ? 'Already on your watchlist.' : 'Added to your watchlist.');
-      } else {
-        setAll(id, 'err', 'Retry'); toast(errText(x.r.status, x.j));
+        markWatched(id, x.j.alreadyWatched ? 'Already on your watchlist.' : 'Added to your watchlist.');
+        return;
       }
+      // POST returned an error — still trust status if the lot is watched.
+      statusWatched([id]).then(function (watched) {
+        if (watched.indexOf(String(id)) >= 0) {
+          markWatched(id, 'Added to your watchlist.');
+        } else {
+          clearPending(id);
+          setAll(id, 'err', 'Retry'); toast(errText(x.r.status, x.j));
+        }
+      });
     }
     function onFail(e, canRetry) {
       var timed = e && (e.name === 'AbortError' || e.code === 20);
       if (timed && canRetry) {
-        toast('Timed out \u2014 retrying\u2026');
+        toast('Timed out — retrying…');
         setTimeout(function () {
           doPost().then(onOk).catch(function (e2) { onFail(e2, false); });
         }, 3000);
         return;
       }
-      setAll(id, 'err', 'Retry');
-      toast(timed
-        ? 'Couldn\u2019t reach the watch service. Wait ~30s if my computer was asleep and retry.'
-        : 'Couldn\u2019t reach the watch service. Wait ~30s if my computer was asleep and retry.');
+      // Final failure: one last status check — treat watched as success.
+      statusWatched([id]).then(function (watched) {
+        if (watched.indexOf(String(id)) >= 0) {
+          markWatched(id, 'Added to your watchlist.');
+          return;
+        }
+        clearPending(id);
+        setAll(id, 'err', 'Retry');
+        toast(timed
+          ? 'Couldn’t reach the watch service. Wait ~30s if my computer was asleep and retry.'
+          : 'Couldn’t reach the watch service. Wait ~30s if my computer was asleep and retry.');
+      });
     }
     doPost().then(onOk).catch(function (e) { onFail(e, true); });
   }
