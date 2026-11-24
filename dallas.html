@@ -45,6 +45,10 @@ details.category-section .grid { padding-top:4px; }
   background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 14px;
   font-size:13px; box-shadow:0 4px 18px rgba(0,0,0,.35); display:none; }
 #watch-toast.show { display:block; }
+#watch-pending { position:fixed; right:12px; bottom:16px; z-index:9;
+  background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:10px;
+  padding:7px 11px; font-size:12px; font-weight:650; box-shadow:0 4px 18px rgba(0,0,0,.35); display:none; }
+#watch-pending.show { display:block; }
 
 .yard-toggle { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; align-items:center; }
 .yard-toggle button {
@@ -542,15 +546,47 @@ Amazon&#x27;s Choice
 <details class="past-searches" id="past-searches"><summary>Past searches (9)</summary><ul><li><strong>pet carrier</strong> · retired 2026-11-09 — <span class="why">0 stars of 231 hits Oct18–Nov8</span></li><li><strong>Cord hider</strong> · retired 2026-11-09 — <span class="why">0 stars of 137 hits Oct18–Nov8</span></li><li><strong>Siterlink</strong> · retired 2026-11-09 — <span class="why">0 stars of 116 hits Oct18–Nov8</span></li><li><strong>Hose holder</strong> · retired 2026-11-09 — <span class="why">0 stars of 104 hits Oct18–Nov8</span></li><li><strong>Felt</strong> · retired 2026-11-09 — <span class="why">0 stars of 100 hits Oct18–Nov8</span></li><li><strong>Eufy</strong> · retired 2026-11-09 — <span class="why">0 stars of 75 hits Oct18–Nov8</span></li><li><strong>Mortise</strong> · retired 2026-11-09 — <span class="why">0 stars of 67 hits Oct18–Nov8</span></li><li><strong>Bike pet</strong> · retired 2026-11-10 — <span class="why">0 stars of 46 hits Oct18–Nov9</span></li><li><strong>Wall heater</strong> · retired 2026-11-12 — <span class="why">retired by Justin</span></li></ul></details>
 
 <div id="watch-toast" role="status" aria-live="polite"></div>
+<div id="watch-pending" role="status" aria-live="polite"></div>
 <script id="elvis-watch-js">
 (function () {
   var BASE = 'https://watch.treasureflows.com';
   var TOKEN = '86yeskBS_KjQMAkrOnLaGdElJjeWuzqeH3oVPuzY5C4';
+  var STORE = 'elvis-digest-watch-v1';
+  var PAGE = /dallas\.html$/.test(location.pathname) ? 'dallas' : 'main';
   var toastEl = document.getElementById('watch-toast'), toastT;
+  var pendEl = document.getElementById('watch-pending');
   function toast(msg) {
     if (!toastEl) return;
     toastEl.textContent = msg; toastEl.classList.add('show');
     clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('show'); }, 4500);
+  }
+  function loadStore() {
+    try { return JSON.parse(localStorage.getItem(STORE) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function saveStore(s) {
+    try { localStorage.setItem(STORE, JSON.stringify(s)); } catch (e) {}
+  }
+  function remember(id, state, extra) {
+    var s = loadStore();
+    var prev = s[String(id)] || {};
+    var rec = { state: state, ts: Date.now(), page: (extra && extra.page) || prev.page || PAGE };
+    var meta = (extra && extra.meta) || prev.meta;
+    if (meta) rec.meta = meta;
+    s[String(id)] = rec;
+    saveStore(s);
+    paintBadge();
+  }
+  function paintBadge() {
+    if (!pendEl) return;
+    var s = loadStore(), nPend = 0, nQ = 0;
+    Object.keys(s).forEach(function (id) {
+      if (!document.querySelector('.watch-btn[data-watch-id="' + id + '"]')) return;
+      if (s[id].state === 'pending') nPend++;
+      else if (s[id].state === 'queued') nQ++;
+    });
+    if (nPend) { pendEl.textContent = nPend + ' pending'; pendEl.classList.add('show'); }
+    else if (nQ) { pendEl.textContent = nQ + ' queued'; pendEl.classList.add('show'); }
+    else { pendEl.textContent = ''; pendEl.classList.remove('show'); }
   }
   function btns(id) { return document.querySelectorAll('.watch-btn[data-watch-id="' + id + '"]'); }
   function paint(b, state, label) {
@@ -572,7 +608,6 @@ Amazon&#x27;s Choice
     if (status === 429) return 'Too many taps. Wait a minute and retry.';
     return 'Couldn’t add it' + (body && body.error ? ' (' + body.error + ')' : '') + '. Try again.';
   }
-  var PAGE = /dallas\.html$/.test(location.pathname) ? 'dallas' : 'main';
   function txt(el) { return el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : ''; }
   function cardMeta(b) {
     // Logging-only context for the star history (the box re-derives everything server-side).
@@ -605,23 +640,39 @@ Amazon&#x27;s Choice
     return fetch(BASE + '/status?ids=' + ids.join(','), opt)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
-        if (!j || !j.ok) return [];
-        return (j.watched || []).map(String);
+        if (!j || !j.ok) return { watched: [], queued: [], originDown: true };
+        return {
+          watched: (j.watched || []).map(String),
+          queued: (j.queued || []).map(String),
+          originDown: !!(j.originDown || j.edge)
+        };
       })
-      .catch(function () { return []; });
+      .catch(function () { return { watched: [], queued: [], originDown: true }; });
   }
   function markWatched(id, msg, label) {
     clearPending(id);
+    remember(id, label === 'Queued' ? 'queued' : 'on');
     setAll(id, 'on', label || 'Watching');
     toast(msg || 'Added to your watchlist.');
+  }
+  function applyStatusIds(watched, queued) {
+    var qd = (queued || []).map(String);
+    (watched || []).forEach(function (id) {
+      id = String(id);
+      var isQ = qd.indexOf(id) >= 0;
+      remember(id, isQ ? 'queued' : 'on');
+      setAll(id, 'on', isQ ? 'Queued' : 'Watching');
+    });
+    paintBadge();
   }
   function pollTick() {
     var ids = Object.keys(pendingPoll);
     if (!ids.length) { stopPollIfIdle(); return; }
-    statusWatched(ids).then(function (watched) {
-      watched.forEach(function (wid) {
+    statusWatched(ids).then(function (st) {
+      st.watched.forEach(function (wid) {
         if (!pendingPoll[wid]) return;
-        markWatched(wid, 'Added to your watchlist.');
+        var isQ = st.queued.indexOf(wid) >= 0;
+        markWatched(wid, isQ ? 'Saved. It will be added to your watchlist as soon as my computer wakes up.' : 'Added to your watchlist.', isQ ? 'Queued' : 'Watching');
       });
     });
   }
@@ -630,12 +681,10 @@ Amazon&#x27;s Choice
     pendingPoll[id] = true;
     if (!pollTimer) pollTimer = setInterval(pollTick, 1750);
   }
-  function add(b) {
-    var id = b.getAttribute('data-watch-id');
-    if (!/^[0-9]+$/.test(id) || b.classList.contains('pending') || b.classList.contains('on')) return;
+  function postAdd(b, id, meta) {
     setAll(id, 'pending', 'Adding');
     startPending(id);
-    var body = JSON.stringify({ pageId: id, page: PAGE, meta: cardMeta(b) });
+    var body = JSON.stringify({ pageId: id, page: PAGE, meta: meta || cardMeta(b) });
     function doPost() {
       var opt = withTimeout(45000);
       opt.method = 'POST';
@@ -652,12 +701,14 @@ Amazon&#x27;s Choice
         return;
       }
       // POST returned an error — still trust status if the lot is watched.
-      statusWatched([id]).then(function (watched) {
-        if (watched.indexOf(String(id)) >= 0) {
-          markWatched(id, 'Added to your watchlist.');
+      statusWatched([id]).then(function (st) {
+        if (st.watched.indexOf(String(id)) >= 0) {
+          var isQ = st.queued.indexOf(String(id)) >= 0;
+          markWatched(id, isQ ? 'Saved. It will be added to your watchlist as soon as my computer wakes up.' : 'Added to your watchlist.', isQ ? 'Queued' : 'Watching');
         } else {
           clearPending(id);
           setAll(id, 'err', 'Retry'); toast(errText(x.r.status, x.j));
+          paintBadge();
         }
       });
     }
@@ -671,9 +722,10 @@ Amazon&#x27;s Choice
         return;
       }
       // Final failure: one last status check — treat watched as success.
-      statusWatched([id]).then(function (watched) {
-        if (watched.indexOf(String(id)) >= 0) {
-          markWatched(id, 'Added to your watchlist.');
+      statusWatched([id]).then(function (st) {
+        if (st.watched.indexOf(String(id)) >= 0) {
+          var isQ = st.queued.indexOf(String(id)) >= 0;
+          markWatched(id, isQ ? 'Saved. It will be added to your watchlist as soon as my computer wakes up.' : 'Added to your watchlist.', isQ ? 'Queued' : 'Watching');
           return;
         }
         clearPending(id);
@@ -681,32 +733,71 @@ Amazon&#x27;s Choice
         toast(timed
           ? 'Couldn’t reach the watch service. Wait ~30s if my computer was asleep and retry.'
           : 'Couldn’t reach the watch service. Wait ~30s if my computer was asleep and retry.');
+        paintBadge();
       });
     }
     doPost().then(onOk).catch(function (e) { onFail(e, true); });
+  }
+  function add(b) {
+    var id = b.getAttribute('data-watch-id');
+    if (!/^[0-9]+$/.test(id) || b.classList.contains('pending') || b.classList.contains('on')) return;
+    remember(id, 'pending', { meta: cardMeta(b) });
+    postAdd(b, id, cardMeta(b));
+  }
+  function applyStore() {
+    var s = loadStore(), keep = {}, now = Date.now(), maxAge = 14 * 24 * 3600 * 1000;
+    Object.keys(s).forEach(function (id) {
+      var rec = s[id]; if (!rec) return;
+      if (now - (rec.ts || 0) > maxAge) return;
+      keep[id] = rec;
+      if (!document.querySelector('.watch-btn[data-watch-id="' + id + '"]')) return;
+      if (rec.state === 'on') setAll(id, 'on', 'Watching');
+      else if (rec.state === 'queued') setAll(id, 'on', 'Queued');
+      else if (rec.state === 'pending') { setAll(id, 'pending', 'Adding'); startPending(id); }
+    });
+    saveStore(keep);
+    paintBadge();
+  }
+  function retryPending() {
+    var s = loadStore();
+    Object.keys(s).forEach(function (id) {
+      if (!s[id] || s[id].state !== 'pending') return;
+      var b = document.querySelector('.watch-btn[data-watch-id="' + id + '"]');
+      if (!b) return;
+      postAdd(b, id, s[id].meta);
+    });
   }
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('.watch-btn');
     if (!b) return;
     ev.preventDefault(); ev.stopPropagation(); add(b);
   });
-  // Pre-fill stars (fails silently if watch service unreachable)
+  window.addEventListener('beforeunload', function (ev) {
+    var s = loadStore(), id;
+    for (id in s) {
+      if (s[id] && s[id].state === 'pending' && document.querySelector('.watch-btn[data-watch-id="' + id + '"]')) {
+        ev.preventDefault(); ev.returnValue = ''; return;
+      }
+    }
+  });
+  window.addEventListener('online', function () { retryPending(); });
+  // Re-apply saved stars immediately, then retry any unsynced clicks, then confirm with /status.
+  applyStore();
+  retryPending();
   var ids = [];
   document.querySelectorAll('.watch-btn[data-watch-id]').forEach(function (b) {
     var id = b.getAttribute('data-watch-id'); if (/^[0-9]+$/.test(id) && ids.indexOf(id) < 0) ids.push(id);
   });
   var batches = []; for (var i = 0; i < ids.length; i += 150) batches.push(ids.slice(i, i + 150));
   (function next(k) {
-    if (k >= batches.length) return;
+    if (k >= batches.length) { paintBadge(); return; }
     var opt = withTimeout(20000); opt.mode = 'cors'; opt.credentials = 'omit';
     opt.headers = { 'X-Elvis-Watch-Token': TOKEN };
     fetch(BASE + '/status?ids=' + batches[k].join(','), opt).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
-        if (!j || !j.ok) return;
-        var qd = (j.queued || []).map(String);
-        (j.watched || []).forEach(function (id) { setAll(String(id), 'on', qd.indexOf(String(id)) >= 0 ? 'Queued' : 'Watching'); });
+        if (j && j.ok) applyStatusIds(j.watched || [], j.queued || []);
         next(k + 1);
-      }).catch(function () {});
+      }).catch(function () { next(k + 1); });
   })(0);
 })();
 </script>
